@@ -1,5 +1,12 @@
 <template>
   <div class="game-container">
+    <div class="device-warning" v-if="showDeviceWarning">
+      <div class="warning-content">
+        <h2>Desktop Only Game</h2>
+        <p>This game requires a keyboard and is designed for desktop computers.</p>
+        <p>Please visit on a desktop device to play!</p>
+      </div>
+    </div>
     <div class="game-info">
       <div class="stats">
         <div class="stat-item">
@@ -246,12 +253,24 @@ watch(currentLevel, (newLevel) => {
   }
 })
 
+const showDeviceWarning = ref(false)
+
 onMounted(() => {
   initializeGame()
   initGame()
   window.addEventListener('keydown', handleKeyDown)
   window.addEventListener('keyup', handleKeyUp)
   moveInterval = setInterval(movePlayer, 100) // Adjust this value to control movement speed
+
+  const checkDevice = () => {
+    showDeviceWarning.value = 
+      window.innerWidth < 768 || 
+      ('ontouchstart' in window) ||
+      (navigator.maxTouchPoints > 0)
+  }
+  
+  checkDevice()
+  window.addEventListener('resize', checkDevice)
 })
 
 onUnmounted(() => {
@@ -260,6 +279,7 @@ onUnmounted(() => {
   clearInterval(moveInterval)
   stopAnimation()
   stopMusic()
+  window.removeEventListener('resize', checkDevice)
 })
 </script>
 
@@ -417,5 +437,40 @@ canvas {
 
 .social-link:hover {
   color: #686de0;
+}
+
+.device-warning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.warning-content {
+  background: #1a1a1a;
+  padding: 30px;
+  border-radius: 8px;
+  text-align: center;
+  max-width: 400px;
+  border: 2px solid #4834d4;
+}
+
+.warning-content h2 {
+  color: #4834d4;
+  margin-bottom: 15px;
+  font-size: 24px;
+}
+
+.warning-content p {
+  color: #fff;
+  margin: 10px 0;
+  line-height: 1.4;
 }
 </style> 
