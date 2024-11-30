@@ -42,8 +42,8 @@
     <canvas ref="gameCanvas" width="1000" height="700"></canvas>
     <p class="attribution">
       Made with ☕️ and ❤️ in 🏝️ on 💻 via 🌐 with 👀 and 🙌 by 
-      <a href="https://x.com/erwin_ai" target="_blank" class="social-link">Erwin</a> /
-      <a href="https://bsky.app/profile/erwin.blue" target="_blank" class="social-link">Erwin</a> 🤓
+      <a href="https://x.com/erwin_ai" target="_blank" class="social-link">Erwin (X)</a> /
+      <a href="https://bsky.app/profile/erwin.blue" target="_blank" class="social-link">Erwin (BSKY)</a> 🤓
     </p>
     <ClientOnly>
       <div style="display: none" @vue:mounted="initializeMusic"></div>
