@@ -32,7 +32,12 @@
         </button>
       </div>
     </div>
-    <canvas ref="gameCanvas" width="1200" height="800"></canvas>
+    <canvas ref="gameCanvas" width="1000" height="700"></canvas>
+    <p class="attribution">
+      Made with ☕️ and ❤️ in 🏝️ on 💻 via 🌐 with 👀 and 🙌 by 
+      <a href="https://x.com/erwin_ai" target="_blank" class="social-link">Erwin</a> /
+      <a href="https://bsky.app/profile/erwin.blue" target="_blank" class="social-link">Erwin</a> 🤓
+    </p>
     <ClientOnly>
       <div style="display: none" @vue:mounted="initializeMusic"></div>
     </ClientOnly>
@@ -395,5 +400,22 @@ canvas {
 .restart-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+}
+
+.attribution {
+  margin-top: 15px;
+  color: #888;
+  font-size: 14px;
+  text-align: center;
+}
+
+.social-link {
+  color: #4834d4;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.social-link:hover {
+  color: #686de0;
 }
 </style> 
