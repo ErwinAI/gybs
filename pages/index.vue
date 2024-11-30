@@ -39,7 +39,7 @@
         </button>
       </div>
     </div>
-    <canvas ref="gameCanvas" width="1000" height="700"></canvas>
+    <canvas ref="gameCanvas" width="1000" height="600"></canvas>
     <p class="attribution">
       Made with ☕️ and ❤️ in 🏝️ on 💻 via 🌐 with 👀 and 🙌 by 
       <a href="https://x.com/erwin_ai" target="_blank" class="social-link">Erwin (X)</a> /

@@ -7,8 +7,8 @@ export function useGameRenderer(canvasRef, playerPosition, collectibles, obstacl
   const wallThickness = 2 // Number of wall tiles on each side
   const totalSize = gridSize + (wallThickness * 2) // Total grid size including walls
   const tileSize = 30
-  const offsetX = 600
-  const offsetY = 200
+  const offsetX = 500
+  const offsetY = 150
   let animationFrameId = null
 
   const drawIsometricTile = (x, y, color, isWall = false) => {
