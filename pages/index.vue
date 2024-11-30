@@ -263,10 +263,15 @@ onMounted(() => {
   moveInterval = setInterval(movePlayer, 100) // Adjust this value to control movement speed
 
   const checkDevice = () => {
+    // Check if it's likely a mobile/tablet device
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    )
+    
+    // Only show warning if it's both small screen AND a mobile device
     showDeviceWarning.value = 
-      window.innerWidth < 768 || 
-      ('ontouchstart' in window) ||
-      (navigator.maxTouchPoints > 0)
+      (window.innerWidth < 768 && isMobileDevice) || 
+      (window.innerWidth < 768 && 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches)
   }
   
   checkDevice()
