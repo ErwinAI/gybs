@@ -392,27 +392,77 @@ const handleTrackpadTouch = (event) => {
   const deltaX = touch.clientX - centerX
   const deltaY = touch.clientY - centerY
   
-  // Calculate normalized direction (-1 to 1)
-  const maxDistance = rect.width / 2
-  const normalizedX = Math.max(-1, Math.min(1, deltaX / maxDistance))
-  const normalizedY = Math.max(-1, Math.min(1, deltaY / maxDistance))
-  
-  // Update trackpad visual position (constrained within outer circle)
+  // Calculate angle and distance
   const angle = Math.atan2(deltaY, deltaX)
-  const distance = Math.min(maxDistance, Math.sqrt(deltaX * deltaX + deltaY * deltaY))
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+  const maxDistance = rect.width / 2
+  const normalizedDistance = Math.min(1, distance / maxDistance)
+  
+  // Update visual position
   const visualX = Math.cos(angle) * distance
   const visualY = Math.sin(angle) * distance
   
+  // Constrain to square bounds
+  const maxX = maxDistance
+  const maxY = maxDistance
+  const constrainedX = Math.max(-maxX, Math.min(maxX, visualX))
+  const constrainedY = Math.max(-maxY, Math.min(maxY, visualY))
+  
   trackpadPosition.value = {
-    left: `calc(50% + ${visualX}px)`,
-    top: `calc(50% + ${visualY}px)`
+    left: `calc(50% + ${constrainedX}px)`,
+    top: `calc(50% + ${constrainedY}px)`
   }
   
-  // Update movement state
-  keyStates.value.left = normalizedX < -0.3
-  keyStates.value.right = normalizedX > 0.3
-  keyStates.value.up = normalizedY < -0.3
-  keyStates.value.down = normalizedY > 0.3
+  if (normalizedDistance > 0.3) {
+    // Important change: Offset the angle by -π/2 to align with game coordinates
+    // This makes 0 point upward instead of rightward
+    const gameAngle = angle - Math.PI/2
+    const sector = Math.round(((gameAngle + Math.PI) / (Math.PI / 4))) % 8
+    
+    // Reset all directions
+    keyStates.value.up = false
+    keyStates.value.down = false
+    keyStates.value.left = false
+    keyStates.value.right = false
+    
+    // Map sectors correctly to game directions
+    switch (sector) {
+      case 0: // Up
+        keyStates.value.up = true
+        break
+      case 1: // Up-Right
+        keyStates.value.up = true
+        keyStates.value.right = true
+        break
+      case 2: // Right
+        keyStates.value.right = true
+        break
+      case 3: // Down-Right
+        keyStates.value.down = true
+        keyStates.value.right = true
+        break
+      case 4: // Down
+        keyStates.value.down = true
+        break
+      case 5: // Down-Left
+        keyStates.value.down = true
+        keyStates.value.left = true
+        break
+      case 6: // Left
+        keyStates.value.left = true
+        break
+      case 7: // Up-Left
+        keyStates.value.up = true
+        keyStates.value.left = true
+        break
+    }
+  } else {
+    // Reset all directions if stick is near center
+    keyStates.value.up = false
+    keyStates.value.down = false
+    keyStates.value.left = false
+    keyStates.value.right = false
+  }
 }
 
 const resetMovement = () => {
@@ -729,37 +779,42 @@ canvas {
   width: 120px;
   height: 120px;
   pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
 }
 
 .trackpad-outer {
   width: 100%;
   height: 100%;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
+  border-radius: 0;
   position: relative;
   background: rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
 .trackpad-inner {
   width: 40px;
   height: 40px;
   background: rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
+  border-radius: 0;
   position: absolute;
   transform: translate(-50%, -50%);
-  transition: all 0.1s ease;
+  transition: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .dash-button {
   width: 80px;
   height: 80px;
-  border-radius: 50%;
+  border-radius: 0;
   background: rgba(155, 89, 182, 0.8);
-  border: none;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
   font-weight: bold;
   font-family: inherit;
   pointer-events: auto;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
 .dash-button:active {
