@@ -2,7 +2,7 @@ import { ref, watch, computed } from 'vue'
 import { levels } from './gameLevels'
 import { useObstaclePatterns } from './useObstaclePatterns'
 
-export function useGameState() {
+export function useGameState(keyStates) {
   const playerPosition = ref({ x: 10, y: 10 })
   const collectibles = ref([])
   const obstacles = ref([])
@@ -15,13 +15,6 @@ export function useGameState() {
   const { currentStep, isAnimating, generateObstacles, startAnimation, stopAnimation } = useObstaclePatterns()
   const isVictorious = ref(false)
   const collectibleMap = ref(new Map())
-  const keyStates = ref({
-    up: false,
-    down: false,
-    left: false,
-    right: false,
-    shift: false
-  })
   const lastPortalPosition = ref(null)
 
   const loadLevel = (levelNumber) => {
@@ -269,6 +262,5 @@ export function useGameState() {
     loadLevel,
     isVictorious,
     movePlayer,
-    keyStates,
   }
 } 

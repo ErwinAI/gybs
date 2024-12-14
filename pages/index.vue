@@ -105,6 +105,16 @@ import { useGameControls } from '~/composables/useGameControls'
 
 const gameCanvas = ref(null)
 const {
+  keyStates,
+  handleKeyDown,
+  handleKeyUp,
+  isMobileDevice,
+  trackpadPosition,
+  handleTrackpadTouch,
+  resetMovement,
+  showMusicControls
+} = useGameControls()
+const {
   playerPosition,
   collectibles,
   obstacles,
@@ -116,8 +126,7 @@ const {
   loadLevel,
   isVictorious,
   movePlayer,
-  keyStates,
-} = useGameState()
+} = useGameState(keyStates)
 const { currentTutorial, showTutorial, checkForTutorial, closeTutorial } = useTutorials()
 const { initGame, drawGame, stopAnimation, drawVictoryEffect, drawTutorial } = useGameRenderer(
   gameCanvas,
@@ -140,15 +149,6 @@ const moveDelay = 150 // Base delay
 let animationFrameId = null
 let victoryAnimation = null
 let collisionInterval = null
-
-const {
-  handleKeyDown,
-  handleKeyUp,
-  isMobileDevice,
-  trackpadPosition,
-  handleTrackpadTouch,
-  resetMovement
-} = useGameControls(loadLevel, drawGame, currentLevel, isTransitioning, isVictorious)
 
 const startGameMusic = () => {
   musicStarted.value = true
@@ -217,7 +217,6 @@ watch(currentLevel, (newLevel) => {
 })
 
 const showDeviceWarning = ref(false)
-const showMusicControls = ref(false)
 
 const handleTutorialClose = () => {
   closeTutorial()
