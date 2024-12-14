@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { levels } from './gameLevels'
 import { useObstaclePatterns } from './useObstaclePatterns'
 
@@ -14,6 +14,15 @@ export function useGameState() {
   const collectedItems = ref(new Set())
   const { currentStep, isAnimating, generateObstacles, startAnimation, stopAnimation } = useObstaclePatterns()
   const isVictorious = ref(false)
+  const collectibleMap = ref(new Map())
+  const keyStates = ref({
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    shift: false
+  })
+  const lastPortalPosition = ref(null)
 
   const loadLevel = (levelNumber) => {
     const level = levels[levelNumber]
@@ -32,23 +41,28 @@ export function useGameState() {
       obstacles.value = level.obstacles.flatMap(pattern => 
         generateObstacles(pattern, currentStep.value)
       )
-    } else {
+    } else if (level.obstacles) { // Check if obstacles exist
       startAnimation(level.obstacles)
       obstacles.value = generateObstacles(level.obstacles, currentStep.value)
+    } else {
+      obstacles.value = [] // Set empty array if no obstacles
     }
 
-    // Set spawn point
-    if (levelNumber === 1) {
+    // Use lastPortalPosition if it exists, otherwise use spawnPoint
+    if (lastPortalPosition.value) {
+      playerPosition.value = { ...lastPortalPosition.value }
+      // Don't clear lastPortalPosition here, let checkPortals handle it
+    } else if (level.spawnPoint) {
       playerPosition.value = { ...level.spawnPoint }
     } else {
-      // Spawn next to the up/down point we came from
-      const prevLevel = levels[levelNumber - 1]
-      if (prevLevel?.up) {
-        playerPosition.value = { x: level.down.x + 1, y: level.down.y }
-      } else {
-        playerPosition.value = { x: level.up.x - 1, y: level.up.y }
-      }
+      playerPosition.value = { x: 1, y: 1 }
     }
+    
+    // Create fast lookup map for collectibles
+    collectibleMap.value.clear()
+    collectibles.value.forEach(c => {
+      collectibleMap.value.set(`${c.x},${c.y}`, c)
+    })
     
     return true
   }
@@ -56,15 +70,34 @@ export function useGameState() {
   const checkPortals = () => {
     const level = levels[currentLevel.value]
     
-    if (level.up && 
+    // Check multiple up portals
+    if (Array.isArray(level.up)) {
+      for (const portal of level.up) {
+        if (playerPosition.value.x === portal.x && playerPosition.value.y === portal.y) {
+          if (lastPortalPosition.value) {
+            lastPortalPosition.value = null
+            return false
+          }
+          isTransitioning.value = true
+          currentLevel.value++
+          loadLevel(currentLevel.value)
+          setTimeout(() => {
+            isTransitioning.value = false
+          }, 600)
+          return true
+        }
+      }
+    } else if (level.up && 
         playerPosition.value.x === level.up.x && 
         playerPosition.value.y === level.up.y) {
-      // Check if this is the final level
-      if (currentLevel.value === 10) {
+      if (lastPortalPosition.value) {
+        lastPortalPosition.value = null
+        return false
+      }
+      if (currentLevel.value === 12) {
         isVictorious.value = true
         return true
       }
-      
       isTransitioning.value = true
       currentLevel.value++
       loadLevel(currentLevel.value)
@@ -74,17 +107,32 @@ export function useGameState() {
       return true
     }
     
-    if (level.down && 
+    // Check multiple down portals
+    if (Array.isArray(level.down)) {
+      for (const portal of level.down) {
+        if (playerPosition.value.x === portal.x && playerPosition.value.y === portal.y) {
+          isTransitioning.value = true
+          lastPortalPosition.value = { x: portal.x, y: portal.y }
+          const nextLevel = currentLevel.value - 1
+          currentLevel.value = nextLevel
+          loadLevel(nextLevel)
+          setTimeout(() => {
+            isTransitioning.value = false
+          }, 600)
+          return true
+        }
+      }
+    } else if (level.down && 
         playerPosition.value.x === level.down.x && 
         playerPosition.value.y === level.down.y) {
       isTransitioning.value = true
-      // Change level immediately
-      currentLevel.value--
-      loadLevel(currentLevel.value)
-      // Keep transition state for flashing animation
+      lastPortalPosition.value = { x: level.down.x, y: level.down.y }
+      const nextLevel = currentLevel.value - 1
+      currentLevel.value = nextLevel
+      loadLevel(nextLevel)
       setTimeout(() => {
         isTransitioning.value = false
-      }, 600) // Match the duration of flashing animation
+      }, 600)
       return true
     }
     
@@ -99,37 +147,35 @@ export function useGameState() {
   }
 
   const checkCollisions = () => {
-    // Check collectibles
-    const collectibleIndex = collectibles.value.findIndex(
-      c => c.x === playerPosition.value.x && c.y === playerPosition.value.y
-    )
-    if (collectibleIndex !== -1) {
-      const collectible = collectibles.value[collectibleIndex]
+    // First check portals
+    const portalResult = checkPortals()
+    if (portalResult) return true
+
+    const pos = `${playerPosition.value.x},${playerPosition.value.y}`
+    
+    // Then check collectibles
+    if (collectibleMap.value.has(pos)) {
+      const collectible = collectibleMap.value.get(pos)
       collectedItems.value.add(`${currentLevel.value}-${collectible.x}-${collectible.y}`)
-      collectibles.value.splice(collectibleIndex, 1)
+      collectibleMap.value.delete(pos)
+      collectibles.value = collectibles.value.filter(c => 
+        `${c.x},${c.y}` !== pos
+      )
       score.value += 10
     }
 
-    // Check obstacles
-    const hitObstacle = obstacles.value.some(
-      o => o.x === playerPosition.value.x && o.y === playerPosition.value.y
+    // Finally check obstacles
+    const obstacleSet = new Set(
+      obstacles.value.map(o => `${o.x},${o.y}`)
     )
-    if (hitObstacle) {
-      loadLevel(currentLevel.value) // Reset to level spawn point
+    
+    if (obstacleSet.has(pos)) {
+      loadLevel(currentLevel.value)
       score.value = Math.max(0, score.value - 5)
-    }
-
-    // Check finish tile in level 10
-    const level = levels[currentLevel.value]
-    if (level.finish && 
-        playerPosition.value.x === level.finish.x && 
-        playerPosition.value.y === level.finish.y) {
-      isVictorious.value = true
       return true
     }
 
-    // Check for level transitions
-    return checkPortals() // Return whether a level change occurred
+    return false
   }
 
   // Update obstacles position on animation step
@@ -146,6 +192,68 @@ export function useGameState() {
     }
   })
 
+  const isWallTile = (x, y) => {
+    // Check outer walls
+    if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) {
+      return true
+    }
+    
+    // Check level-specific walls
+    const level = levels[currentLevel.value]
+    if (level.walls) {
+      return level.walls.some(([wallX, wallY]) => wallX === x && wallY === y)
+    }
+    
+    return false
+  }
+
+  const movePlayer = () => {
+    if (isTransitioning.value) return false
+
+    const oldPosition = { ...playerPosition.value }
+    let newPosition = { ...playerPosition.value }
+    let moved = false
+
+    // Handle each direction separately to allow sliding along walls
+    if (keyStates.value.up) {
+      const testPos = { ...newPosition, y: newPosition.y - 1 }
+      if (!isWallTile(testPos.x, testPos.y)) {
+        newPosition.y = testPos.y
+        moved = true
+      }
+    }
+    if (keyStates.value.down) {
+      const testPos = { ...newPosition, y: newPosition.y + 1 }
+      if (!isWallTile(testPos.x, testPos.y)) {
+        newPosition.y = testPos.y
+        moved = true
+      }
+    }
+    if (keyStates.value.left) {
+      const testPos = { ...newPosition, x: newPosition.x - 1 }
+      if (!isWallTile(testPos.x, testPos.y)) {
+        newPosition.x = testPos.x
+        moved = true
+      }
+    }
+    if (keyStates.value.right) {
+      const testPos = { ...newPosition, x: newPosition.x + 1 }
+      if (!isWallTile(testPos.x, testPos.y)) {
+        newPosition.x = testPos.x
+        moved = true
+      }
+    }
+
+    if (moved) {
+      playerPosition.value = newPosition
+      // Check collisions only if we actually moved
+      const levelChanged = checkCollisions()
+      return true || levelChanged
+    }
+
+    return false
+  }
+
   return {
     playerPosition,
     collectibles,
@@ -160,5 +268,7 @@ export function useGameState() {
     collectedItems,
     loadLevel,
     isVictorious,
+    movePlayer,
+    keyStates,
   }
 } 

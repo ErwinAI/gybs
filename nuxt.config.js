@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
   devtools: { enabled: false },
+
   app: {
     head: {
       title: 'bl0cks',
@@ -16,5 +17,7 @@ export default defineNuxtConfig({
         }
       ]
     }
-  }
-}) 
+  },
+
+  compatibilityDate: '2024-12-02'
+})

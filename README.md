@@ -1,15 +1,18 @@
-# gybs
+# bl0cks
 
-To install dependencies:
+A frustrating game that nobody should play. You are a purple block, trying to avoid the red blocks, obtaining the yellow blocks and making it to the end.
 
-```bash
-bun install
-```
+## Controls
 
-To run:
+- `WASD` or `Arrow Keys` to move
+- Hold `Shift` to dash
+- `Space` to jump
 
-```bash
-bun run index.js
-```
+## How to play
 
-This project was created using `bun init` in bun v1.1.30. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+- Avoid the red blocks
+- Obtain the yellow blocks for 10 points
+- Make it to the end of the level, blue block
+
+If you hit a red block, you will go back to the start of the current level and you loose 5 points
+

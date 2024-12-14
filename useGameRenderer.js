@@ -1,0 +1,1 @@
+canvasRef.value.style.transform = 'translateZ(0)' 

@@ -529,33 +529,66 @@ export function useObstaclePatterns() {
     }))
   }
 
-  const generateObstacles = (pattern, step) => {
-    if (!pattern) return []
+  // Add memoization for pattern generation
+  const patternCache = new Map()
 
+  const generateObstacles = (pattern, step) => {
+    if (pattern.type === 'staticWall') {
+      return pattern.points.map(([x, y]) => ({ x, y }))
+    }
+    
+    // Create cache key
+    const cacheKey = `${pattern.type}-${pattern.center}-${pattern.size}-${step}-${pattern.rotationSteps}`
+    
+    // Check cache first
+    if (patternCache.has(cacheKey)) {
+      return patternCache.get(cacheKey)
+    }
+    
+    let result = []
     switch (pattern.type) {
       case 'windmill':
-        return generateWindmillPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateWindmillPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'triangle':
-        return generateTrianglePattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateTrianglePattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'cross':
-        return generateCrossPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateCrossPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'sineWave':
-        return generateSineWavePattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateSineWavePattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'phasingWall':
-        return generatePhasingWallPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generatePhasingWallPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'orbitingDots':
-        return generateOrbitingDotsPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateOrbitingDotsPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'pulsingStar':
-        return generatePulsingStarPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generatePulsingStarPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'zipper':
-        return generateZipperPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateZipperPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'bouncingBalls':
-        return generateBouncingBallsPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateBouncingBallsPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       case 'alternatingWall':
-        return generateAlternatingWallPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        result = generateAlternatingWallPattern(pattern.center, pattern.size, step, pattern.rotationSteps)
+        break
       default:
         return []
     }
+    
+    // Cache result (limit cache size to prevent memory issues)
+    if (patternCache.size > 1000) {
+      const firstKey = patternCache.keys().next().value
+      patternCache.delete(firstKey)
+    }
+    patternCache.set(cacheKey, result)
+    
+    return result
   }
 
   const startAnimation = (pattern) => {
