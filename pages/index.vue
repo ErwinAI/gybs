@@ -101,6 +101,7 @@ import { useGameState } from '~/composables/useGameState'
 import { useGameRenderer } from '~/composables/useGameRenderer'
 import { useGameMusic } from '~/composables/useGameMusic'
 import { useTutorials } from '~/composables/useTutorials'
+import { useGameControls } from '~/composables/useGameControls'
 
 const gameCanvas = ref(null)
 const {
@@ -140,75 +141,14 @@ let animationFrameId = null
 let victoryAnimation = null
 let collisionInterval = null
 
-const handleKeyDown = (event) => {
-  event.preventDefault()
-  
-  if (isTransitioning.value || isVictorious.value) return
-
-  switch (event.key) {
-    // CHEAT CODES - Remove for production
-    case '[':
-      if (currentLevel.value > 1) {
-        currentLevel.value--
-        loadLevel(currentLevel.value)
-        drawGame()
-      }
-      return
-    case ']':
-      currentLevel.value++
-      loadLevel(currentLevel.value)
-      drawGame()
-      return
-    // END CHEAT CODES
-    
-    case 'w':
-    case 'ArrowUp':
-      keyStates.value.up = true
-      break
-    case 's':
-    case 'ArrowDown':
-      keyStates.value.down = true
-      break
-    case 'a':
-    case 'ArrowLeft':
-      keyStates.value.left = true
-      break
-    case 'd':
-    case 'ArrowRight':
-      keyStates.value.right = true
-      break
-    case 'Shift':
-      keyStates.value.shift = true
-      break
-    case '/':
-      showMusicControls.value = !showMusicControls.value
-      return
-  }
-}
-
-const handleKeyUp = (event) => {
-  switch (event.key) {
-    case 'w':
-    case 'ArrowUp':
-      keyStates.value.up = false
-      break
-    case 's':
-    case 'ArrowDown':
-      keyStates.value.down = false
-      break
-    case 'a':
-    case 'ArrowLeft':
-      keyStates.value.left = false
-      break
-    case 'd':
-    case 'ArrowRight':
-      keyStates.value.right = false
-      break
-    case 'Shift':
-      keyStates.value.shift = false
-      break
-  }
-}
+const {
+  handleKeyDown,
+  handleKeyUp,
+  isMobileDevice,
+  trackpadPosition,
+  handleTrackpadTouch,
+  resetMovement
+} = useGameControls(loadLevel, drawGame, currentLevel, isTransitioning, isVictorious)
 
 const startGameMusic = () => {
   musicStarted.value = true
@@ -376,108 +316,6 @@ const handleCanvasClick = (event) => {
       y >= bounds.y && y <= bounds.y + bounds.height) {
     handleTutorialClose()
   }
-}
-
-const isMobileDevice = ref(false)
-const trackpadPosition = ref({ left: '50%', top: '50%' })
-
-const handleTrackpadTouch = (event) => {
-  event.preventDefault()
-  const touch = event.touches[0]
-  const trackpad = event.currentTarget
-  const rect = trackpad.getBoundingClientRect()
-  
-  const centerX = rect.left + rect.width / 2
-  const centerY = rect.top + rect.height / 2
-  
-  const deltaX = touch.clientX - centerX
-  const deltaY = touch.clientY - centerY
-  
-  // Calculate angle and distance
-  const angle = Math.atan2(deltaY, deltaX)
-  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-  const maxDistance = rect.width / 2
-  const normalizedDistance = Math.min(1, distance / maxDistance)
-  
-  // Update visual position
-  const visualX = Math.cos(angle) * distance
-  const visualY = Math.sin(angle) * distance
-  
-  // Constrain to square bounds
-  const maxX = maxDistance
-  const maxY = maxDistance
-  const constrainedX = Math.max(-maxX, Math.min(maxX, visualX))
-  const constrainedY = Math.max(-maxY, Math.min(maxY, visualY))
-  
-  trackpadPosition.value = {
-    left: `calc(50% + ${constrainedX}px)`,
-    top: `calc(50% + ${constrainedY}px)`
-  }
-  
-  // Only process movement if beyond dead zone
-  if (normalizedDistance > 0.3) {
-    // Convert to 8-way direction
-    // Normalize angle to 0-360 degrees
-    let degrees = (angle * 180 / Math.PI + 180) % 360
-    
-    // Offset by 22.5 degrees to center the sectors
-    degrees = (degrees + 22.5) % 360
-    
-    // Calculate sector (0-7)
-    const sector = Math.floor(degrees / 45)
-    
-    // Reset states
-    keyStates.value.up = false
-    keyStates.value.down = false
-    keyStates.value.left = false
-    keyStates.value.right = false
-    
-    // Map sectors to directions
-    switch (sector) {
-      case 0: // Right
-        keyStates.value.right = true
-        break
-      case 1: // Down-Right
-        keyStates.value.down = true
-        keyStates.value.right = true
-        break
-      case 2: // Down
-        keyStates.value.down = true
-        break
-      case 3: // Down-Left
-        keyStates.value.down = true
-        keyStates.value.left = true
-        break
-      case 4: // Left
-        keyStates.value.left = true
-        break
-      case 5: // Up-Left
-        keyStates.value.up = true
-        keyStates.value.left = true
-        break
-      case 6: // Up
-        keyStates.value.up = true
-        break
-      case 7: // Up-Right
-        keyStates.value.up = true
-        keyStates.value.right = true
-        break
-    }
-  } else {
-    // Reset all directions if in dead zone
-    keyStates.value.up = false
-    keyStates.value.down = false
-    keyStates.value.left = false
-    keyStates.value.right = false
-  }
-}
-
-const resetMovement = () => {
-  keyStates.value.up = false
-  keyStates.value.down = false
-  keyStates.value.left = false
-  keyStates.value.right = false
-  trackpadPosition.value = { left: '50%', top: '50%' }
 }
 
 const resizeCanvas = () => {
