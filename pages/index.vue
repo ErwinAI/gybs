@@ -320,13 +320,16 @@ onMounted(() => {
   setupInitialGame()
 
   const checkDevice = () => {
-    isMobileDevice.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     ) || (window.innerWidth < 768 && 'ontouchstart' in window)
     
-    if (isMobileDevice.value) {
-      showDeviceWarning.value = false // Allow mobile play now
+    if (isMobile && !isMobileDevice.value) {
+      isMobileDevice.value = true
+      showDeviceWarning.value = false
       resizeCanvas()
+    } else if (!isMobile && isMobileDevice.value) {
+      isMobileDevice.value = false
     }
   }
   
@@ -384,11 +387,9 @@ const handleTrackpadTouch = (event) => {
   const trackpad = event.currentTarget
   const rect = trackpad.getBoundingClientRect()
   
-  // Calculate center of trackpad
   const centerX = rect.left + rect.width / 2
   const centerY = rect.top + rect.height / 2
   
-  // Calculate distance from center
   const deltaX = touch.clientX - centerX
   const deltaY = touch.clientY - centerY
   
@@ -413,51 +414,57 @@ const handleTrackpadTouch = (event) => {
     top: `calc(50% + ${constrainedY}px)`
   }
   
+  // Only process movement if beyond dead zone
   if (normalizedDistance > 0.3) {
-    // Important change: Offset the angle by -π/2 to align with game coordinates
-    // This makes 0 point upward instead of rightward
-    const gameAngle = angle - Math.PI/2
-    const sector = Math.round(((gameAngle + Math.PI) / (Math.PI / 4))) % 8
+    // Convert to 8-way direction
+    // Normalize angle to 0-360 degrees
+    let degrees = (angle * 180 / Math.PI + 180) % 360
     
-    // Reset all directions
+    // Offset by 22.5 degrees to center the sectors
+    degrees = (degrees + 22.5) % 360
+    
+    // Calculate sector (0-7)
+    const sector = Math.floor(degrees / 45)
+    
+    // Reset states
     keyStates.value.up = false
     keyStates.value.down = false
     keyStates.value.left = false
     keyStates.value.right = false
     
-    // Map sectors correctly to game directions
+    // Map sectors to directions
     switch (sector) {
-      case 0: // Up
-        keyStates.value.up = true
-        break
-      case 1: // Up-Right
-        keyStates.value.up = true
+      case 0: // Right
         keyStates.value.right = true
         break
-      case 2: // Right
-        keyStates.value.right = true
-        break
-      case 3: // Down-Right
+      case 1: // Down-Right
         keyStates.value.down = true
         keyStates.value.right = true
         break
-      case 4: // Down
+      case 2: // Down
         keyStates.value.down = true
         break
-      case 5: // Down-Left
+      case 3: // Down-Left
         keyStates.value.down = true
         keyStates.value.left = true
         break
-      case 6: // Left
+      case 4: // Left
         keyStates.value.left = true
         break
-      case 7: // Up-Left
+      case 5: // Up-Left
         keyStates.value.up = true
         keyStates.value.left = true
+        break
+      case 6: // Up
+        keyStates.value.up = true
+        break
+      case 7: // Up-Right
+        keyStates.value.up = true
+        keyStates.value.right = true
         break
     }
   } else {
-    // Reset all directions if stick is near center
+    // Reset all directions if in dead zone
     keyStates.value.up = false
     keyStates.value.down = false
     keyStates.value.left = false
