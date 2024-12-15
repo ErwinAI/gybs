@@ -1,5 +1,6 @@
 export const levels = {
   1: {
+    nextLevel: 2,
     up: { x: 18, y: 18 },
     collectibles: [[10, 7], [10, 13]],
     obstacles: {
@@ -12,6 +13,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   2: {
+    nextLevel: 3,
     up: { x: 18, y: 18 },
     collectibles: [[6, 10], [14, 10]],
     obstacles: {
@@ -24,6 +26,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   3: {
+    nextLevel: 4,
     up: { x: 18, y: 18 },
     collectibles: [[8, 8], [12, 12], [8, 12], [12, 8]],
     obstacles: {
@@ -36,6 +39,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   4: {
+    nextLevel: 5,
     up: { x: 18, y: 18 },
     collectibles: [[5, 10], [15, 10], [10, 5], [10, 15]],
     obstacles: {
@@ -48,6 +52,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   5: {
+    nextLevel: 6,
     up: { x: 18, y: 18 },
     collectibles: [[7, 7], [13, 13]],
     obstacles: [
@@ -83,6 +88,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   6: {
+    nextLevel: 7,
     up: { x: 18, y: 18 },
     collectibles: [[5, 10], [15, 10], [10, 10]],
     obstacles: [
@@ -97,6 +103,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   7: {
+    nextLevel: 8,
     up: { x: 18, y: 18 },
     collectibles: [[5, 15], [15, 5], [10, 10]],
     obstacles: [
@@ -118,6 +125,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   8: {
+    nextLevel: 9,
     up: { x: 18, y: 18 },
     collectibles: [[7, 7], [13, 7], [10, 13]],
     obstacles: [
@@ -139,6 +147,7 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   9: {
+    nextLevel: 10,
     up: { x: 18, y: 18 },
     collectibles: [[5, 5], [15, 5], [10, 15]],
     obstacles: [
@@ -160,9 +169,10 @@ export const levels = {
     spawnPoint: { x: 1, y: 1 }
   },
   10: {
-    collectibles: [[7, 7], [13, 7], [7, 13], [13, 13], [2, 17], [8, 17]],
+    nextLevel: 11,
     up: { x: 18, y: 18 },
     spawnPoint: { x: 1, y: 1 },
+    collectibles: [[7, 7], [13, 7], [7, 13], [13, 13], [2, 17], [8, 17]],
     obstacles: [
       {
         type: 'cross',
