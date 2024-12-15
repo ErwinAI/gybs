@@ -258,31 +258,39 @@ export function useGameMusic() {
       conductor.value = new window.BandJS('equalTemperament', 'northAmerican')
       conductor.value.setTimeSignature(4, 4)
       
-      // Adjust base tempo based on level range
-      let baseTempo = 120
-      if (level <= 5) baseTempo = 120        // Calm
-      else if (level <= 10) baseTempo = 140  // Tense
-      else if (level <= 15) baseTempo = 140  // Panic
-      else if (level <= 20) baseTempo = 135  // Intense
-      else if (level <= 25) baseTempo = 150  // Sinister
-      else baseTempo = 145                   // Frenzy
+      // Check if it's a secret level (ends with b or c)
+      const isSecretLevel = typeof level === 'string' && (level.endsWith('b') || level.endsWith('c'))
       
-      const tempo = baseTempo + (level * 0.3)  // Smaller tempo increment per level
-      conductor.value.setTempo(tempo)
-
-      // Select music based on level range
-      if (level <= 5) {
-        createCalm(conductor.value)
-      } else if (level <= 10) {
-        createTense(conductor.value)
-      } else if (level <= 15) {
-        createPanic(conductor.value)
-      } else if (level <= 20) {
-        createIntense(conductor.value)
-      } else if (level <= 25) {
+      // For secret levels, always use sinister music with faster tempo
+      if (isSecretLevel) {
+        conductor.value.setTempo(150)
         createSinister(conductor.value)
       } else {
-        createFrenzy(conductor.value)
+        // Regular level music logic
+        let baseTempo = 120
+        if (level <= 5) baseTempo = 120        // Calm
+        else if (level <= 10) baseTempo = 140  // Tense
+        else if (level <= 14) baseTempo = 140  // Panic
+        else if (level <= 20) baseTempo = 150  // Intense
+        else if (level <= 25) baseTempo = 150  // Sinister
+        else baseTempo = 145                   // Frenzy
+        
+        const tempo = baseTempo + (level * 0.3)
+        conductor.value.setTempo(tempo)
+
+        if (level <= 5) {
+          createCalm(conductor.value)
+        } else if (level <= 10) {
+          createTense(conductor.value)
+        } else if (level <= 14) {
+          createPanic(conductor.value)
+        } else if (level <= 20) {
+          createFrenzy(conductor.value) // no intense
+        } else if (level <= 25) {
+          createSinister(conductor.value)
+        } else {
+          createFrenzy(conductor.value)
+        }
       }
 
       conductor.value = conductor.value.finish()

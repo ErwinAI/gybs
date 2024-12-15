@@ -10,13 +10,16 @@ export function useGameRenderer(
   isTransitioning,
   showTutorial, 
   currentTutorial,
-  onTutorialButtonBoundsChange
+  onTutorialButtonBoundsChange,
+  enemies
 ) {
   const ctx = ref(null)
   const gridSize = 20
   const wallThickness = 2 // Number of wall tiles on each side
   const totalSize = gridSize + (wallThickness * 2) // Total grid size including walls
   const tileSize = 30
+  const offsetX = 500
+  const offsetY = 150
   let animationFrameId = null
 
   // Add debouncing for canvas updates
@@ -24,18 +27,12 @@ export function useGameRenderer(
   const FRAME_RATE = 60 // Target 60 FPS
   const FRAME_DELAY = 1000 / FRAME_RATE
 
-  const getOffsets = (ctx) => {
-    const offsetX = ctx.canvas.width / 2
-    const offsetY = ctx.canvas.height / 3 // Position game grid in upper third
-    return { offsetX, offsetY }
-  }
-
-  const drawIsometricTile = (x, y, color, isWall = false, offsets) => {
+  const drawIsometricTile = (x, y, color, isWall = false) => {
     const isoX = (x - y) * (tileSize / 2)
     const isoY = (x + y) * (tileSize / 4)
 
     ctx.value.save()
-    ctx.value.translate(offsets.offsetX + isoX, offsets.offsetY + isoY)
+    ctx.value.translate(offsetX + isoX, offsetY + isoY)
 
     // Pre-calculate path points
     const points = [
@@ -103,9 +100,9 @@ export function useGameRenderer(
   }
 
   const drawVictoryEffect = (progress) => {
-    const offsets = getOffsets(ctx.value)
-    const centerX = offsets.offsetX
-    const centerY = offsets.offsetY + gridSize * (tileSize / 4)
+    // Draw expanding circles from the center
+    const centerX = offsetX
+    const centerY = offsetY + gridSize * (tileSize / 4)
     
     ctx.value.save()
     ctx.value.globalAlpha = 1 - progress // Fade out as progress increases
@@ -129,16 +126,15 @@ export function useGameRenderer(
     ctx.value.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
     ctx.value.globalAlpha = 1
 
-    const offsets = getOffsets(ctx.value)
     const level = levels[currentLevel.value]
 
     // Draw base grid with walls
     for (let y = -wallThickness; y < gridSize + wallThickness; y++) {
       for (let x = -wallThickness; x < gridSize + wallThickness; x++) {
         if (isWallTile(x, y)) {
-          drawIsometricTile(x, y, '#000000', true, offsets)
+          drawIsometricTile(x, y, '#000000', true)
         } else {
-          drawIsometricTile(x, y, '#f8f9fa', false, offsets)
+          drawIsometricTile(x, y, '#f8f9fa')
         }
       }
     }
@@ -146,31 +142,31 @@ export function useGameRenderer(
     // Draw level-specific walls
     if (level.walls) {
       level.walls.forEach(([x, y]) => {
-        drawIsometricTile(x, y, '#000000', true, offsets)
+        drawIsometricTile(x, y, '#000000', true)
       })
     }
 
     // Draw portals
     if (Array.isArray(level.up)) {
       level.up.forEach(portal => {
-        drawIsometricTile(portal.x, portal.y, '#4834d4', false, offsets)
+        drawIsometricTile(portal.x, portal.y, '#4834d4')
       })
     } else if (level.up) {
-      drawIsometricTile(level.up.x, level.up.y, '#4834d4', false, offsets)
+      drawIsometricTile(level.up.x, level.up.y, '#4834d4')
     }
     
     if (Array.isArray(level.down)) {
       level.down.forEach(portal => {
-        drawIsometricTile(portal.x, portal.y, '#6ab04c', false, offsets)
+        drawIsometricTile(portal.x, portal.y, '#6ab04c')
       })
     } else if (level.down) {
-      drawIsometricTile(level.down.x, level.down.y, '#6ab04c', false, offsets)
+      drawIsometricTile(level.down.x, level.down.y, '#6ab04c')
     }
 
     // Draw collectibles that don't overlap with obstacles
     collectibles.value.forEach(collectible => {
       if (!obstacles.value.some(o => o.x === collectible.x && o.y === collectible.y)) {
-        drawIsometricTile(collectible.x, collectible.y, '#ffd32a', false, offsets)
+        drawIsometricTile(collectible.x, collectible.y, '#ffd32a')
       }
     })
 
@@ -179,17 +175,24 @@ export function useGameRenderer(
       .filter(obstacle => isInBounds(obstacle.x, obstacle.y))
       .forEach(obstacle => {
         const color = isCollectibleAt(obstacle.x, obstacle.y) ? '#ff8c42' : '#ff4757'
-        drawIsometricTile(obstacle.x, obstacle.y, color, false, offsets)
+        drawIsometricTile(obstacle.x, obstacle.y, color)
       })
+
+    // Draw enemies
+    if (currentLevel.value && levels[currentLevel.value].enemies) {
+      enemies.value.forEach(enemy => {
+        drawIsometricTile(enemy.x, enemy.y, '#8B0000') // Dark red for enemies
+      })
+    }
 
     // Draw player with flash effect if transitioning
     if (isTransitioning.value) {
       const flashSpeed = 100
       const currentFlash = Math.floor(Date.now() / flashSpeed) % 2
       const playerColor = currentFlash === 0 ? '#d6b4e7' : '#9b59b6'
-      drawIsometricTile(playerPosition.value.x, playerPosition.value.y, playerColor, false, offsets)
+      drawIsometricTile(playerPosition.value.x, playerPosition.value.y, playerColor)
     } else {
-      drawIsometricTile(playerPosition.value.x, playerPosition.value.y, '#9b59b6', false, offsets)
+      drawIsometricTile(playerPosition.value.x, playerPosition.value.y, '#9b59b6')
     }
   }
 
@@ -241,14 +244,12 @@ export function useGameRenderer(
 
     // Draw border tiles with smaller size
     const borderTileSize = 20
-    const borderThickness = 1
     
     // Calculate how many tiles we need
     const tilesHorizontal = Math.ceil(boxWidth / borderTileSize)
     const tilesVertical = Math.ceil(boxHeight / borderTileSize)
     
     // Draw inner content area first (no gap)
-    const contentPadding = borderTileSize // Match border tile size
     const innerX = boxX
     const innerY = boxY
     const innerWidth = boxWidth
@@ -291,13 +292,14 @@ export function useGameRenderer(
     ctx.value.font = 'bold 28px "JetBrains Mono", monospace'
     ctx.value.textAlign = 'center'
     
+    const titleYValue = textStartY + (tutorial.subtitle ? 20 : 45)
     // Draw main title shadow
     ctx.value.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    ctx.value.fillText(tutorial.title, canvasRef.value.width / 2 + 2, textStartY + 20 + 2)
+    ctx.value.fillText(tutorial.title, canvasRef.value.width / 2 + 2, titleYValue + 2)
     
     // Draw main title
     ctx.value.fillStyle = '#9b59b6'
-    ctx.value.fillText(tutorial.title, canvasRef.value.width / 2, textStartY + 20)
+    ctx.value.fillText(tutorial.title, canvasRef.value.width / 2, titleYValue + 2)
 
     // Draw subtitle with shadow
     ctx.value.font = '16px "JetBrains Mono", monospace'
@@ -314,36 +316,43 @@ export function useGameRenderer(
     ctx.value.textAlign = 'left' // Always left aligned
 
     tutorial.content.forEach((line, index) => {
-      // Draw example tile
-      const tileSize = 20
-      const tileX = textStartX + 20
-      const tileY = textStartY + 90 + (index * 25) - tileSize/2 // Reduced from 35 to 25
+      // If tutorial specifies colored bullets and it's the first tutorial
+      if (tutorial.useColoredBullets) {
+        // Draw example tile
+        const tileSize = 20
+        const tileX = textStartX + 20
+        const tileY = textStartY + 90 + (index * 25) - tileSize/2 // Reduced from 35 to 25
 
-      // Draw different colored tiles based on the line
-      let tileColor = '#9b59b6' // Default purple
-      if (line.includes('yellow')) tileColor = '#ffd32a'
-      if (line.includes('red')) tileColor = '#ff4757'
-      if (line.includes('Blue')) tileColor = '#4834d4'
-      if (line.includes('Green')) tileColor = '#6ab04c'
+        // Draw different colored tiles based on the line
+        let tileColor = '#9b59b6' // Default purple
+        if (line.includes('yellow')) tileColor = '#ffd32a'
+        if (line.includes('red')) tileColor = '#ff4757'
+        if (line.includes('Blue')) tileColor = '#4834d4'
+        if (line.includes('Green')) tileColor = '#6ab04c'
 
-      // Draw tile
-      ctx.value.fillStyle = tileColor
-      ctx.value.beginPath()
-      ctx.value.rect(tileX, tileY, tileSize, tileSize)
-      ctx.value.fill()
-      
-      // Add white border for tiles
-      ctx.value.strokeStyle = '#ffffff'
-      ctx.value.lineWidth = 1.5
-      ctx.value.stroke()
+        // Draw tile
+        ctx.value.fillStyle = tileColor
+        ctx.value.beginPath()
+        ctx.value.rect(tileX, tileY, tileSize, tileSize)
+        ctx.value.fill()
+        
+        // Add white border for tiles
+        ctx.value.strokeStyle = '#ffffff'
+        ctx.value.lineWidth = 1.5
+        ctx.value.stroke()
 
-      // Draw text
-      ctx.value.fillStyle = 'white'
-      ctx.value.fillText(
-        line, 
-        tileX + tileSize + 20, // Add some space after the tile
-        textStartY + 100 + (index * 25) // Reduced from 35 to 25
-      )
+        // Draw text
+        ctx.value.fillStyle = 'white'
+        ctx.value.fillText(
+          line, 
+          tileX + tileSize + 20, // Add some space after the tile
+          textStartY + 100 + (index * 25) // Reduced from 35 to 25
+        )
+      } else {
+        // Draw simple dash for bullet points
+        ctx.value.fillStyle = '#fff'
+        ctx.value.fillText(`- ${line}`, textStartX + 20, textStartY + 100 + (index * 25))
+      }
     })
 
     // Draw continue button

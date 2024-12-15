@@ -1,23 +1,28 @@
 <template>
   <div class="game-container">
-    <div class="top-section">
-      <div class="game-info">
-        <div class="stats">
-          <div class="stat-item">
-            <span class="label">SCORE</span>
-            <span class="value">{{ score }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">LEVEL</span>
-            <span class="value">{{ currentLevel }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">COLLECTIBLES</span>
-            <span class="value">{{ collectibles.length }}</span>
-          </div>
+    <div class="device-warning" v-if="showDeviceWarning">
+      <div class="warning-content">
+        <h2>Desktop Only Game</h2>
+        <p>This game requires a keyboard and is designed for desktop computers.</p>
+        <p>Please visit on a desktop device to play!</p>
+      </div>
+    </div>
+    <div class="game-info">
+      <div class="stats">
+        <div class="stat-item">
+          <span class="label">SCORE</span>
+          <span class="value">{{ score }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">LEVEL</span>
+          <span class="value">{{ currentLevel }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">G0LD IN LEVEL</span>
+          <span class="value">{{ collectibles.length }}</span>
         </div>
       </div>
-      <div class="music-controls-top">
+      <div class="controls">
         <button 
           v-if="!musicStarted" 
           @click="startGameMusic" 
@@ -40,35 +45,11 @@
       height="600"
       @click="handleCanvasClick"
     ></canvas>
-    <div class="bottom-section">
-      <div v-if="isMobileDevice" class="mobile-controls">
-        <div 
-          class="virtual-trackpad"
-          @touchstart="handleTrackpadTouch"
-          @touchmove="handleTrackpadTouch"
-          @touchend="resetMovement"
-        >
-          <div class="trackpad-outer">
-            <div 
-              class="trackpad-inner"
-              :style="trackpadPosition"
-            ></div>
-          </div>
-        </div>
-        <button 
-          class="dash-button"
-          @touchstart="keyStates.shift = true"
-          @touchend="keyStates.shift = false"
-        >
-          DASH
-        </button>
-      </div>
-      <p class="attribution">
-        Made with ☕️ and ❤️ in 🏝️ on 💻 via 🌐 with 👀 and 🙌 by 
-        <a href="https://x.com/erwin_ai" target="_blank" class="social-link">Erwin (X)</a> /
-        <a href="https://bsky.app/profile/erwin.blue" target="_blank" class="social-link">Erwin (BSKY)</a> 🤓
-      </p>
-    </div>
+    <p class="attribution">
+      Made with ☕️ and ❤️ in 🏝️ on 💻 via 🌐 with 👀 and 🙌 by 
+      <a href="https://x.com/erwin_ai" target="_blank" class="social-link">Erwin (X)</a> /
+      <a href="https://bsky.app/profile/erwin.blue" target="_blank" class="social-link">Erwin (BSKY)</a> 🤓
+    </p>
     <ClientOnly>
       <div style="display: none" @vue:mounted="initializeMusic"></div>
     </ClientOnly>
@@ -101,19 +82,8 @@ import { useGameState } from '~/composables/useGameState'
 import { useGameRenderer } from '~/composables/useGameRenderer'
 import { useGameMusic } from '~/composables/useGameMusic'
 import { useTutorials } from '~/composables/useTutorials'
-import { useGameControls } from '~/composables/useGameControls'
 
 const gameCanvas = ref(null)
-const {
-  keyStates,
-  handleKeyDown,
-  handleKeyUp,
-  isMobileDevice,
-  trackpadPosition,
-  handleTrackpadTouch,
-  resetMovement,
-  showMusicControls
-} = useGameControls()
 const {
   playerPosition,
   collectibles,
@@ -121,14 +91,25 @@ const {
   score,
   currentLevel,
   isTransitioning,
+  gridSize,
+  tileSize,
   initializeGame,
   checkCollisions,
+  collectedItems,
   loadLevel,
   isVictorious,
   movePlayer,
-} = useGameState(keyStates)
+  keyStates,
+  enemies,
+} = useGameState()
 const { currentTutorial, showTutorial, checkForTutorial, closeTutorial } = useTutorials()
-const { initGame, drawGame, stopAnimation, drawVictoryEffect, drawTutorial } = useGameRenderer(
+const tutorialButtonBounds = ref(null)
+
+const onTutorialButtonBoundsChange = (bounds) => {
+  tutorialButtonBounds.value = bounds
+}
+
+const { initGame, drawGame, drawVictoryEffect, stopAnimation } = useGameRenderer(
   gameCanvas,
   playerPosition,
   collectibles,
@@ -137,9 +118,8 @@ const { initGame, drawGame, stopAnimation, drawVictoryEffect, drawTutorial } = u
   isTransitioning,
   showTutorial,
   currentTutorial,
-  (bounds) => {
-    tutorialButtonBounds.value = bounds
-  }
+  onTutorialButtonBoundsChange,
+  enemies
 )
 const { initMusic, playMusic, stopMusic } = useGameMusic()
 const musicStarted = ref(false)
@@ -149,6 +129,84 @@ const moveDelay = 150 // Base delay
 let animationFrameId = null
 let victoryAnimation = null
 let collisionInterval = null
+
+const keyHeld_Up = ref(false)
+const keyHeld_Down = ref(false)
+const keyHeld_Left = ref(false)
+const keyHeld_Right = ref(false)
+const keyHeld_Shift = ref(false)
+
+const handleKeyDown = (event) => {
+  event.preventDefault()
+  
+  if (isTransitioning.value || isVictorious.value) return
+
+  // Handle cheat codes and music controls
+  switch (event.key) {
+    case '[':
+      if (currentLevel.value > 1) {
+        currentLevel.value--
+        loadLevel(currentLevel.value)
+        drawGame()
+      }
+      return
+    case ']':
+      currentLevel.value++
+      loadLevel(currentLevel.value)
+      drawGame()
+      return
+    case '/':
+      showMusicControls.value = !showMusicControls.value
+      return
+  }
+
+  // Handle movement keys
+  switch (event.key.toLowerCase()) {
+    case 'w':
+    case 'arrowup':
+      keyHeld_Up.value = true
+      break
+    case 's':
+    case 'arrowdown':
+      keyHeld_Down.value = true
+      break
+    case 'a':
+    case 'arrowleft':
+      keyHeld_Left.value = true
+      break
+    case 'd':
+    case 'arrowright':
+      keyHeld_Right.value = true
+      break
+    case 'shift':
+      keyHeld_Shift.value = true
+      break
+  }
+}
+
+const handleKeyUp = (event) => {
+  switch (event.key.toLowerCase()) {
+    case 'w':
+    case 'arrowup':
+      keyHeld_Up.value = false
+      break
+    case 's':
+    case 'arrowdown':
+      keyHeld_Down.value = false
+      break
+    case 'a':
+    case 'arrowleft':
+      keyHeld_Left.value = false
+      break
+    case 'd':
+    case 'arrowright':
+      keyHeld_Right.value = false
+      break
+    case 'shift':
+      keyHeld_Shift.value = false
+      break
+  }
+}
 
 const startGameMusic = () => {
   musicStarted.value = true
@@ -217,6 +275,7 @@ watch(currentLevel, (newLevel) => {
 })
 
 const showDeviceWarning = ref(false)
+const showMusicControls = ref(false)
 
 const handleTutorialClose = () => {
   closeTutorial()
@@ -236,21 +295,36 @@ const startGame = () => {
 const gameLoop = (timestamp) => {
   if (isVictorious.value) return
   
-  const currentDelay = keyStates.value.shift ? moveDelay * 0.5 : moveDelay
+  const currentTime = performance.now()
+  const baseDelay = 150
+  const currentDelay = keyHeld_Shift.value ? baseDelay * 0.5 : baseDelay
   
-  if (timestamp - lastMoveTime >= currentDelay) {
-    const moved = movePlayer()
-    if (moved) {
-      drawGame()
+  if (currentTime - lastMoveTime >= currentDelay) {
+    let moved = false
+    
+    // Only attempt movement if any key is held
+    if (keyHeld_Up.value || keyHeld_Down.value || keyHeld_Left.value || keyHeld_Right.value) {
+      moved = movePlayer({
+        up: keyHeld_Up.value,
+        down: keyHeld_Down.value,
+        left: keyHeld_Left.value,
+        right: keyHeld_Right.value
+      })
+      
+      if (moved) {
+        drawGame()
+        lastMoveTime = currentTime
+      }
     }
-    lastMoveTime = timestamp
   }
+  
   animationFrameId = requestAnimationFrame(gameLoop)
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown)
   window.addEventListener('keyup', handleKeyUp)
+  window.addEventListener('blur', cleanupKeyStates)
   animationFrameId = requestAnimationFrame(gameLoop)
   collisionInterval = setInterval(() => {
     checkCollisions()
@@ -259,42 +333,35 @@ onMounted(() => {
   setupInitialGame()
 
   const checkDevice = () => {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
-    ) || (window.innerWidth < 768 && 'ontouchstart' in window)
+    )
     
-    if (isMobile && !isMobileDevice.value) {
-      isMobileDevice.value = true
-      showDeviceWarning.value = false
-      resizeCanvas()
-    } else if (!isMobile && isMobileDevice.value) {
-      isMobileDevice.value = false
-    }
+    showDeviceWarning.value = 
+      (window.innerWidth < 768 && isMobileDevice) || 
+      (window.innerWidth < 768 && 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches)
   }
   
   checkDevice()
   window.addEventListener('resize', checkDevice)
-  window.addEventListener('resize', resizeCanvas)
-  resizeCanvas()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
   window.removeEventListener('keyup', handleKeyUp)
+  window.removeEventListener('blur', cleanupKeyStates)
   cancelAnimationFrame(animationFrameId)
-  clearInterval(collisionInterval) // Clear the new interval
+  clearInterval(collisionInterval)
   stopAnimation()
   stopMusic()
+  cleanupKeyStates()
   window.removeEventListener('resize', checkDevice)
-  window.removeEventListener('resize', resizeCanvas)
 })
 
 const playMusicVariation = (level) => {
   musicStarted.value = true
   playMusic(level)
 }
-
-const tutorialButtonBounds = ref(null)
 
 const handleCanvasClick = (event) => {
   if (!showTutorial.value || !tutorialButtonBounds.value) return
@@ -317,31 +384,13 @@ const handleCanvasClick = (event) => {
   }
 }
 
-const resizeCanvas = () => {
-  if (!gameCanvas.value) return
-  
-  const container = document.documentElement // Use viewport instead of container
-  const containerWidth = container.clientWidth
-  const containerHeight = container.clientHeight
-  
-  // Calculate available height (subtract space for UI)
-  const availableHeight = containerHeight - 200 // Space for top and bottom UI
-  
-  // Calculate scale to fit while maintaining aspect ratio
-  const scaleX = containerWidth / 1000 // Original width
-  const scaleY = availableHeight / 600 // Original height
-  const scale = Math.min(scaleX, scaleY)
-  
-  // Update canvas size
-  gameCanvas.value.style.width = `${1000 * scale}px`
-  gameCanvas.value.style.height = `${600 * scale}px`
-  
-  // Center canvas if it's not full width
-  if (1000 * scale < containerWidth) {
-    gameCanvas.value.style.marginLeft = `${(containerWidth - (1000 * scale)) / 2}px`
-  } else {
-    gameCanvas.value.style.marginLeft = '0'
-  }
+const cleanupKeyStates = () => {
+  keyHeld_Up.value = false
+  keyHeld_Down.value = false
+  keyHeld_Left.value = false
+  keyHeld_Right.value = false
+  keyHeld_Shift.value = false
+  lastMoveTime = 0
 }
 </script>
 
@@ -356,64 +405,24 @@ html, body {
 .game-container {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
   background-color: #000;
   color: white;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
-  padding: 20px 0;
-}
-
-.top-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 0 20px 20px;
-  width: 100%;
-  box-sizing: border-box;
+  padding: 20px;
 }
 
 .game-info {
-  margin-bottom: 0; /* Remove margin since we're using gap in parent */
+  margin-bottom: 30px;
   text-align: center;
   width: 100%;
   max-width: 1200px;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   padding: 0 20px;
-}
-
-.music-controls-top {
-  margin-bottom: 0; /* Remove margin since we're using gap in parent */
-  text-align: center;
-}
-
-canvas {
-  margin: auto;
-  width: 100vw;
-  height: auto;
-  background-color: #1a1a1a;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-  border-radius: 0;
-}
-
-.bottom-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 20px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.attribution {
-  margin-top: 0; /* Remove margin since we're using gap in parent */
-  color: #888;
-  font-size: 12px; /* Slightly smaller text */
-  text-align: center;
 }
 
 .stats {
@@ -445,14 +454,20 @@ canvas {
   gap: 10px;
 }
 
+canvas {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
 .music-button {
-  padding: 8px 16px;
+  padding: 10px 20px;
   background-color: #000000;
   color: white;
   border: 1.5px solid #ffffff;
   border-radius: 0;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   transition: all 0.3s ease;
   text-transform: uppercase;
@@ -518,6 +533,13 @@ canvas {
 .restart-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+}
+
+.attribution {
+  margin-top: 15px;
+  color: #888;
+  font-size: 14px;
+  text-align: center;
 }
 
 .social-link {
@@ -605,64 +627,5 @@ canvas {
 .button-grid button:hover {
   background: #1a1a1a;
   transform: translateY(-2px);
-}
-
-.mobile-controls {
-  position: fixed;
-  bottom: 80px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-  pointer-events: none;
-}
-
-.virtual-trackpad {
-  width: 120px;
-  height: 120px;
-  pointer-events: auto;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;
-}
-
-.trackpad-outer {
-  width: 100%;
-  height: 100%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0;
-  position: relative;
-  background: rgba(0, 0, 0, 0.5);
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
-}
-
-.trackpad-inner {
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 0;
-  position: absolute;
-  transform: translate(-50%, -50%);
-  transition: none;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-.dash-button {
-  width: 80px;
-  height: 80px;
-  border-radius: 0;
-  background: rgba(155, 89, 182, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  font-weight: bold;
-  font-family: inherit;
-  pointer-events: auto;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
-}
-
-.dash-button:active {
-  background: rgba(155, 89, 182, 1);
-  transform: scale(0.95);
 }
 </style> 

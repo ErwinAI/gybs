@@ -604,6 +604,21 @@ export function useObstaclePatterns() {
     clearInterval(animationInterval)
   }
 
+  // Add this new pattern to the existing patterns
+  const verticalSine = (obstacle, time) => {
+    const { y: baseY, amplitude, speed, phase = 0 } = obstacle
+    return {
+      x: obstacle.x,
+      y: baseY + Math.sin((time * speed / 1000) + phase) * amplitude
+    }
+  }
+
+  // Add to patterns object
+  const patterns = {
+    // ... existing patterns
+    verticalSine
+  }
+
   return {
     currentStep,
     isAnimating,
